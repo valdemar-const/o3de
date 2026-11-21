@@ -557,7 +557,10 @@ namespace AZ::RPI
             {
                 materialTypeEntry.m_parameterBuffer =
                     createMaterialParameterBuffer(materialTypeIndex, bufferEntrySize, materialTypeEntry.m_instanceData.size());
-                materialTypeEntry.m_parameterBufferView = createRawBufferView(materialTypeEntry.m_parameterBuffer);
+                if (materialTypeEntry.m_parameterBuffer)
+                {
+                    materialTypeEntry.m_parameterBufferView = createRawBufferView(materialTypeEntry.m_parameterBuffer);
+                }
             }
             else if (materialTypeEntry.m_parameterBuffer->GetBufferSize() < bufferSize)
             {
@@ -569,7 +572,10 @@ namespace AZ::RPI
                     instanceData.m_compiledChangeId = Material::DEFAULT_CHANGE_ID;
                 }
             }
-            materialTypeEntry.m_bindlessReadIndices = materialTypeEntry.m_parameterBufferView->GetBindlessReadIndex();
+            if (materialTypeEntry.m_parameterBufferView)
+            {
+                materialTypeEntry.m_bindlessReadIndices = materialTypeEntry.m_parameterBufferView->GetBindlessReadIndex();
+            }
         }
     }
 
@@ -630,9 +636,24 @@ namespace AZ::RPI
 
             // prepare / resize the GPU buffer
             auto indicesBufferSize = static_cast<uint64_t>(sizeof(int32_t) * m_materialTypeIndices.MaxCount());
+            if (indicesBufferSize == 0)
+            {
+                // Все типы материалов освобождены (например, при выгрузке уровня),
+                // новые ещё не зарегистрированы. Буфер нулевого размера создать
+                // нельзя, данных для загрузки нет. Флаг m_bufferReadIndicesDirty
+                // остаётся взведённым: обновление повторится после регистрации
+                // следующего материала.
+                return false;
+            }
             if (!m_materialTypeBufferIndicesBuffer)
             {
                 m_materialTypeBufferIndicesBuffer = createBuffer(m_materialTypeData.size());
+                if (!m_materialTypeBufferIndicesBuffer)
+                {
+                    // Создание буфера провалилось. Флаг m_bufferReadIndicesDirty
+                    // остаётся взведённым, попытка повторится в следующем кадре.
+                    return false;
+                }
             }
             if (m_materialTypeBufferIndicesBuffer->GetBufferSize() < indicesBufferSize)
             {
