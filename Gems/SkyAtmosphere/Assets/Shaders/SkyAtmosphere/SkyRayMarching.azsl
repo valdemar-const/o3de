@@ -36,15 +36,25 @@ float3 GetSunLuminance(in float3 worldPos, in float3 worldDir, in float planetRa
             {
                 const float d = (1.0 - angle) / (1.0 - sunAngle) ;
                 const float falloff = pow(1.0 - d, PassSrg::m_constants.m_sunFalloffFactor);
+                // Диск гасят трансмиссией атмосферы вдоль луча взгляда: у
+                // горизонта он тускнеет и краснеет, а с высоты виден за
+                // горизонтом наземного наблюдателя с цветом своего пути.
+                AtmosphereParameters Atmosphere = GetAtmosphereParameters();
+                const float viewHeight = length(worldPos);
+                float2 transUv;
+                LutTransmittanceParamsToUv(Atmosphere, viewHeight, dot(worldDir, worldPos / viewHeight), transUv);
+                const float3 viewTransmittance = viewHeight < Atmosphere.TopRadius
+                    ? PassSrg::m_transmittanceLUT.SampleLevel(PassSrg::LinearSampler, transUv, 0).rgb
+                    : float3(1.0, 1.0, 1.0);
                 if(PassSrg::m_constants.m_sunFalloffFactor <= 1.0)
                 {
                     // crisp sun disk
-                    return lerp(PassSrg::m_constants.m_sunLimbColor, PassSrg::m_constants.m_sunColor, falloff);
+                    return lerp(PassSrg::m_constants.m_sunLimbColor, PassSrg::m_constants.m_sunColor, falloff) * viewTransmittance;
                 }
                 else
                 {
                     // soft sun disk
-                    return lerp(PassSrg::m_constants.m_sunLimbColor, PassSrg::m_constants.m_sunColor, falloff) * falloff;
+                    return lerp(PassSrg::m_constants.m_sunLimbColor, PassSrg::m_constants.m_sunColor, falloff) * falloff * viewTransmittance;
                 }
             }
         }
