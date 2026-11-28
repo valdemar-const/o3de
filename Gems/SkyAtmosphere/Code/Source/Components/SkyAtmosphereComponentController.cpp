@@ -6,6 +6,7 @@
  *
  */
 
+#include <Atom/Feature/CoreLights/PhotometricValue.h>
 #include <Atom/Feature/SkyBox/SkyboxConstants.h>
 #include <Components/SkyAtmosphereComponentController.h>
 #include <AtomLyIntegration/CommonFeatures/CoreLights/DirectionalLightBus.h>
@@ -89,8 +90,14 @@ namespace SkyAtmosphere
         required.push_back(AZ_CRC_CE("TransformService"));
     }
 
+    SkyAtmosphereComponentController::SkyAtmosphereComponentController()
+        : m_sunLightConfigChangedHandler([this]() { OnParamUpdated(); })
+    {
+    }
+
     SkyAtmosphereComponentController::SkyAtmosphereComponentController(const SkyAtmosphereComponentConfig& config)
         : m_configuration(config)
+        , m_sunLightConfigChangedHandler([this]() { OnParamUpdated(); })
     {
     }
 
@@ -113,6 +120,7 @@ namespace SkyAtmosphere
         params.m_luminanceFactor = m_configuration.m_luminanceFactor;
         params.m_mieAbsorption = m_configuration.m_mieAbsorption * m_configuration.m_mieAbsorptionScale;
         params.m_mieExpDistribution = m_configuration.m_mieExponentialDistribution;
+        params.m_miePhaseG = m_configuration.m_miePhaseG;
         params.m_mieScattering = m_configuration.m_mieScattering * m_configuration.m_mieScatteringScale;
         params.m_minSamples = m_configuration.m_minSamples;
         params.m_maxSamples = m_configuration.m_maxSamples;
@@ -169,6 +177,59 @@ namespace SkyAtmosphere
             AZ::Render::DirectionalLightRequestBus::BroadcastResult(params.m_sunShadowsFarClip, &AZ::Render::DirectionalLightRequests::GetShadowFarClipDistance);
         }
 
+        // Небо пересчитывают по событию света: интенсивность и цвет меняют
+        // в инспекторе и кодом, а без подписки компонент следит только
+        // за поворотом солнца. Солнцем может быть своя сущность.
+        const bool wantSunLightHandler = m_configuration.m_sunLightDrivesSky && m_configuration.m_sun.IsValid();
+        const AZ::EntityId wantedSunLightEntity = wantSunLightHandler ? m_configuration.m_sun : AZ::EntityId();
+        if (m_sunLightConfigHandlerEntity != wantedSunLightEntity)
+        {
+            m_sunLightConfigChangedHandler.Disconnect();
+            m_sunLightConfigHandlerEntity.SetInvalid();
+            if (wantSunLightHandler)
+            {
+                AZ::Render::DirectionalLightRequestBus::Event(wantedSunLightEntity,
+                    &AZ::Render::DirectionalLightRequests::BindConfigurationChangedEventHandler, m_sunLightConfigChangedHandler);
+                m_sunLightConfigHandlerEntity = wantedSunLightEntity;
+            }
+        }
+
+        if (m_configuration.m_sunLightDrivesSky && m_configuration.m_sun.IsValid())
+        {
+            if (auto sunLight = AZ::Render::DirectionalLightRequestBus::FindFirstHandler(m_configuration.m_sun))
+            {
+                const auto multiplyComponents = [](const AZ::Vector3& a, const AZ::Vector3& b)
+                {
+                    return AZ::Vector3(a.GetX() * b.GetX(), a.GetY() * b.GetY(), a.GetZ() * b.GetZ());
+                };
+                // Освещённость солнца берут в тех единицах, в которых свет
+                // светит геометрию сцены. Долю от единичного солнца таблиц
+                // неба получают делением на масштаб сцены.
+                const AZ::Render::PhotometricValue sunLightValue(
+                    sunLight->GetIntensity(), sunLight->GetColor(), sunLight->GetIntensityMode());
+                const AZ::Vector3 sunIlluminance =
+                    sunLightValue.GetCombinedRgb<AZ::Render::PhotometricUnit::Lux>().GetAsVector3();
+                const AZ::Vector3 sunScale(
+                    sunIlluminance.GetX() / SkySceneExposure, sunIlluminance.GetY() / SkySceneExposure, sunIlluminance.GetZ() / SkySceneExposure);
+                params.m_luminanceFactor = multiplyComponents(m_configuration.m_luminanceFactor, sunScale);
+                const AZ::Vector3 discScale = sunScale * m_configuration.m_sunLuminanceFactor;
+                params.m_sunColor = AZ::Color::CreateFromVector3AndFloat(
+                    multiplyComponents(m_configuration.m_sunColor.GetAsVector3(), discScale), 1.0f);
+                params.m_sunLimbColor = AZ::Color::CreateFromVector3AndFloat(
+                    multiplyComponents(m_configuration.m_sunLimbColor.GetAsVector3(), discScale), 1.0f);
+                // Шейдер считает радиус диска как полградуса, умноженные на
+                // фактор, поэтому фактор равен угловому диаметру в градусах.
+                params.m_sunRadiusFactor = sunLight->GetAngularDiameter();
+            }
+            // Предупреждение выводят только для активированной сущности:
+            // атмосфера может стартовать раньше солнца и повторит чтение позже.
+            else if (AZ::TransformBus::FindFirstHandler(m_configuration.m_sun) != nullptr)
+            {
+                AZ_WarningOnce("SkyAtmosphereComponentController", false,
+                    "Sun light drives sky is on, but the sun entity has no directional light. The sky keeps its own sun settings.");
+            }
+        }
+
         if (m_transformInterface)
         {
             switch (m_configuration.m_originMode)
@@ -214,6 +275,8 @@ namespace SkyAtmosphere
         AZ::TransformNotificationBus::MultiHandler::BusDisconnect(m_entityId);
         AZ::TransformNotificationBus::MultiHandler::BusDisconnect(m_configuration.m_sun);
         AZ::EntityBus::Handler::BusDisconnect(m_configuration.m_sun);
+        m_sunLightConfigChangedHandler.Disconnect();
+        m_sunLightConfigHandlerEntity.SetInvalid();
 
         if (m_featureProcessorInterface)
         {

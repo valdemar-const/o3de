@@ -324,6 +324,7 @@ namespace SkyAtmosphere
     {
         m_constants.m_bottomRadius = params.m_planetRadius;
         m_constants.m_topRadius = params.m_atmosphereRadius;
+        m_constants.m_miePhaseFunctionG = params.m_miePhaseG;
         m_constants.m_sunRadiusFactor = params.m_sunRadiusFactor;
         m_constants.m_sunFalloffFactor = params.m_sunFalloffFactor;
         params.m_sunColor.GetAsVector3().StoreToFloat3(m_constants.m_sunColor);

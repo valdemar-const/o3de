@@ -11,6 +11,7 @@
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TransformBus.h>
 #include <AzCore/Component/EntityBus.h>
+#include <AtomLyIntegration/CommonFeatures/CoreLights/DirectionalLightBus.h>
 #include <SkyAtmosphere/SkyAtmosphereFeatureProcessorInterface.h>
 #include <SkyAtmosphere/SkyAtmosphereBus.h>
 
@@ -30,7 +31,7 @@ namespace SkyAtmosphere
         static void GetIncompatibleServices(AZ::ComponentDescriptor::DependencyArrayType& incompatible);
         static void GetRequiredServices(AZ::ComponentDescriptor::DependencyArrayType& required);
 
-        SkyAtmosphereComponentController() = default;
+        SkyAtmosphereComponentController();
         SkyAtmosphereComponentController(const SkyAtmosphereComponentConfig& config);
 
         void Activate(AZ::EntityId entityId);
@@ -149,5 +150,8 @@ namespace SkyAtmosphere
         SkyAtmosphereParams m_atmosphereParams;
         AZ::EntityId m_entityId;
         AZ::EntityId m_sunEntityId;
+        // Событие изменения настроек света солнца и сущность, к которой оно подключено.
+        AZ::Render::DirectionalLightConfigurationChangedEvent::Handler m_sunLightConfigChangedHandler;
+        AZ::EntityId m_sunLightConfigHandlerEntity;
     };
 } // namespace AZ::Render

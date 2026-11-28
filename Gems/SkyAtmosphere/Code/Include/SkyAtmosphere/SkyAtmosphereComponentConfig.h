@@ -50,6 +50,9 @@ namespace SkyAtmosphere
         float m_mieAbsorptionScale = 0.004440f;
         AZ::Vector3 m_mieAbsorption = AZ::Vector3(1.f, 1.f, 1.f);
         float m_mieExponentialDistribution = 1.2f;
+        //! Асимметрия фазы Ми: доля вперёдного рассеяния аэрозоля.
+        //! Земной haze даёт 0.8, пыль Марса - около 0.6.
+        float m_miePhaseG = 0.8f;
 
         // absorption
         float m_absorptionScale = 0.001881f;
@@ -58,6 +61,11 @@ namespace SkyAtmosphere
         // sun
         bool m_drawSun = true;
         AZ::EntityId m_sun; // optional sun entity to use for orientation
+        //! Небо берёт у направленного света сущности m_sun освещённость,
+        //! цвет и угловой диаметр диска. Поля LuminanceFactor, SunColor,
+        //! SunLimbColor и SunRadiusFactor остаются дополнительными
+        //! множителями.
+        bool m_sunLightDrivesSky = false;
         AZ::Color m_sunColor = AZ::Color(1.f, 1.f, 1.f, 1.f);
         AZ::Color m_sunLimbColor = AZ::Color(1.f, 1.f, 1.f, 1.f);
         float m_sunLuminanceFactor = 0.05f;

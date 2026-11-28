@@ -13,6 +13,12 @@
 
 namespace SkyAtmosphere
 {
+    //! Масштаб единиц модели атмосферы в единицы сцены: освещённость
+    //! солнца 1 в таблицах неба даёт в кадре SkySceneExposure. Проход
+    //! умножает на неё свет неба. Освещённость солнца делят на неё, когда
+    //! небо и геометрию сцены приводят к одним единицам.
+    static constexpr float SkySceneExposure = 20.0f;
+
     struct SkyAtmosphereParams
     {
         //! Params that are used for LUT generation
@@ -29,6 +35,9 @@ namespace SkyAtmosphere
 
         //! General params
         AZ::Vector3 m_planetOrigin;
+        //! Асимметрия фазы Ми аэрозоля. На таблицы не влияет: таблицы считают
+        //! ослабление, а фаза нужна только для яркости рассеянного света.
+        float m_miePhaseG;
         uint8_t m_minSamples;
         uint8_t m_maxSamples;
         AZ::Vector3 m_sunDirection;

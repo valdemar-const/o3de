@@ -101,7 +101,7 @@ ShaderResourceGroup PassSrg : SRG_PerPass_WithFallback
         float  m_aerialDepthFactor;
 
         float3 m_planetOrigin;
-        float  m_pad4; // not used
+        float  m_sceneExposure;
     };
 
     Constants m_constants;

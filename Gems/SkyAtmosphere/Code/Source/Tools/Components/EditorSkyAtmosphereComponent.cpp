@@ -130,6 +130,11 @@ namespace SkyAtmosphere
                                 QT_TRANSLATE_NOOP("SkyAtmosphere", " km"))
                             ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
                             ->Attribute(AZ::Edit::Attributes::Max, 400.0f)
+                        ->DataElement(AZ::Edit::UIHandlers::Slider, &SkyAtmosphereComponentConfig::m_miePhaseG,
+                            QT_TRANSLATE_NOOP("SkyAtmosphere", "Mie phase asymmetry"),
+                            QT_TRANSLATE_NOOP("SkyAtmosphere", "Share of the forward scattering of the aerosol. The haze of the Earth gives 0.8, the dust of Mars about 0.6"))
+                            ->Attribute(AZ::Edit::Attributes::Min, -0.99f)
+                            ->Attribute(AZ::Edit::Attributes::Max, 0.99f)
 
                         ->DataElement(AZ::Edit::UIHandlers::Default, &SkyAtmosphereComponentConfig::m_absorptionScale,
                             QT_TRANSLATE_NOOP("SkyAtmosphere", "Ozone absorption scale"),
@@ -156,6 +161,9 @@ namespace SkyAtmosphere
                         ->DataElement(AZ::Edit::UIHandlers::Default, &SkyAtmosphereComponentConfig::m_sun,
                             QT_TRANSLATE_NOOP("SkyAtmosphere", "Sun orientation"),
                             QT_TRANSLATE_NOOP("SkyAtmosphere", "Optional sun entity to use for orientation"))
+                        ->DataElement(AZ::Edit::UIHandlers::CheckBox, &SkyAtmosphereComponentConfig::m_sunLightDrivesSky,
+                            QT_TRANSLATE_NOOP("SkyAtmosphere", "Sun light drives sky"),
+                            QT_TRANSLATE_NOOP("SkyAtmosphere", "The sky takes the sun illuminance, the disc color and the disc size from the directional light of the sun entity. The other sun settings stay as extra multipliers"))
                         ->DataElement(AZ::Edit::UIHandlers::Color, &SkyAtmosphereComponentConfig::m_sunColor,
                             QT_TRANSLATE_NOOP("SkyAtmosphere", "Sun color"),
                             QT_TRANSLATE_NOOP("SkyAtmosphere", "Sun color"))
